@@ -375,7 +375,7 @@ static void on_socket_connected(rws_socket socket)
     printf("websocket connected");
     gchar *json_string;
     JsonArray *array = json_array_new();
-    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink autovideosrc"  VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
+    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink videotestsrc"  VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
 
     gst_element_set_state(gst_pipe, GST_STATE_READY);
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);

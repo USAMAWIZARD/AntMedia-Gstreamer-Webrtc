@@ -6,3 +6,7 @@ gcc sendRecvAnt.c  -o  sendRecvAnt  `pkg-config --cflags --libs gstreamer-1.0 gs
 
 
 GST_DEBUG=3 D:\\gstreamer\\1.0\\mingw_x86_64\\bin\\sendRecvAnt.exe
+
+
+Linux
+gcc sendRecvAnt.c  -o  sendRecvAnt  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtp-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0  gstreamer-net-1.0  gstreamer-pbutils-1.0` ./libs/Linux_librws_static.a 

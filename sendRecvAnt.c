@@ -3,25 +3,13 @@
 #define AUDIO_ENCODE "  ! audioconvert ! audioresample   ! opusenc bitrate=192000  ! rtpopuspay "
 #define VIDEO_ENCODE " ! timeoverlay time-mode=2 halignment=right valignment=bottom   ! videoconvert ! video/x-raw,format=I420 ! x264enc  speed-preset=3 tune=zerolatency ! rtph264pay  "
 #define RTP_CAPS_H264 "application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000"
-#if __APPLE__
-#define MICAUDIOSRC "osxaudiosrc"
-#define CAM " avfvideosrc "
-#define SCREEN "avfvideosrc capture-screen=true "
-#elif _WIN32
-#define MICAUDIOSRC "wasapisrc"
-#define CAM " ksvideosrc "
-#define SCREEN " dx9screencapsrc "
-#elif __linux__
-#define CAM " v4l2src "
-#define SCREEN " ximagesrc "
-#endif
+
 #include <stdlib.h>
 #include <glib.h>
 #include <gst/gst.h>
 #include <gst/webrtc/webrtc.h>
 #include <json-glib/json-glib.h>
 #include "librws.h"
-
 _Bool  is_sender = TRUE;
 GstElement *gst_pipe;
 static gchar *ws_server_addr = "";
@@ -35,9 +23,9 @@ static GOptionEntry entries[] =
     {
         {"ip", 's', 0, G_OPTION_ARG_STRING, &ws_server_addr, "ip address of antmedia server", NULL},
         {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port", NULL},
-        {"streamsrc", 0, 0, G_OPTION_ARG_STRING, &streamsrc, "src of the video , camara or screen", NULL},
+     //   {"streamsrc", 0, 0, G_OPTION_ARG_STRING, &streamsrc, "src of the video , camara or screen", NULL},
         {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "true for publish mode and false play mode default True", NULL},
-        {"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
+     //   {"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
         {"streamids", 'i', 0, G_OPTION_ARG_STRING, &play_streamids, "enter comma , seprated stream Ids to Play", NULL},
         {NULL}};
 static gchar *get_string_from_json_object(JsonObject *object)
@@ -387,7 +375,7 @@ static void on_socket_connected(rws_socket socket)
     printf("websocket connected");
     gchar *json_string;
     JsonArray *array = json_array_new();
-    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink " SCREEN VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
+    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink autovideosrc"  VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
 
     gst_element_set_state(gst_pipe, GST_STATE_READY);
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);

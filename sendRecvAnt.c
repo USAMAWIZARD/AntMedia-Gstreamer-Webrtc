@@ -7,41 +7,39 @@
 #define MICAUDIOSRC "osxaudiosrc"
 #define CAM " avfvideosrc "
 #define SCREEN "avfvideosrc capture-screen=true "
-#define VideoEncoder "vtenc_h264_hw"
 #elif _WIN32
 #define MICAUDIOSRC "wasapisrc"
 #define CAM " ksvideosrc "
 #define SCREEN " dx9screencapsrc "
-#define VideoEncoder "vtenc_h264_hw"
 #elif __linux__
 #define CAM " v4l2src "
 #define SCREEN " ximagesrc "
-#define VideoEncoder "vtenc_h264_hw"
 #endif
-
 #include <stdlib.h>
 #include <glib.h>
 #include <gst/gst.h>
 #include <gst/webrtc/webrtc.h>
 #include <json-glib/json-glib.h>
+
 #include "librws.h"
-_Bool is_sender = FALSE;
+_Bool  is_sender = TRUE;
 GstElement *gst_pipe;
-static gchar *ws_server_addr = "18.207.120.229";
+static gchar *ws_server_addr = "";
 static gint ws_server_port = 5080;
 static rws_socket _socket = NULL;
-gchar *mode ="publish";
-gchar *streamsrc ="camera";
-gchar *vencoding ="h264";
+gchar *streamsrc = "camera";
+gchar *vencoding = "h264";
+gchar *mode="publish";
+gchar *play_streamids;
 static GOptionEntry entries[] =
-{
-  { "ip" , 's' , 0 , G_OPTION_ARG_NONE , &ws_server_addr , "ip address of antmedia server" , NULL } ,
-  { "port" , 'p' , 0 , G_OPTION_ARG_INT , &ws_server_port , "Antmedia server Port" , NULL } ,
-  { "streamsrc" ,0 , 0 , G_OPTION_ARG_NONE , &streamsrc , "src of the video camara or screen" , NULL } ,
-  { "mode" , 'm' , 0 , G_OPTION_ARG_NONE , &mode , "publish mode or play mode" , NULL } ,
-  { "video codec" , 'c' , 0 , G_OPTION_ARG_NONE , &vencoding , "video codecs h264 or vp8" , NULL } ,
-  { NULL }
-};
+    {
+        {"ip", 's', 0, G_OPTION_ARG_STRING, &ws_server_addr, "ip address of antmedia server", NULL},
+        {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port", NULL},
+        {"streamsrc", 0, 0, G_OPTION_ARG_STRING, &streamsrc, "src of the video , camara or screen", NULL},
+        {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "true for publish mode and false play mode default True", NULL},
+        {"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
+        {"streamids", 'i', 0, G_OPTION_ARG_STRING, &play_streamids, "enter comma , seprated stream Ids to Play", NULL},
+        {NULL}};
 static gchar *get_string_from_json_object(JsonObject *object)
 {
     JsonNode *root;
@@ -74,7 +72,7 @@ on_answer_created(GstPromise *promise, gpointer webrtcbin_id)
     g_signal_emit_by_name(webrtc, "set-local-description", answer, promise);
     gst_promise_interrupt(promise);
     gst_promise_unref(promise);
-    //{"command":"takeConfiguration","streamId":"stream1","type":"answer","sdp":"v=0\r\no=- 4971157306988353964 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0 1 2\r\na=msid-semantic: WMS\r\nm=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99 100\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:5VeC\r\na=ice-pwd:jG+CvMaIrfHRJZEugwfkNs7O\r\na=ice-options:trickle\r\na=fingerprint:sha-256 8F:94:8C:92:C4:0A:E4:D7:ED:FB:24:CD:9B:75:AD:A3:BA:CE:A7:67:AA:34:EB:12:06:A5:BF:5D:B2:73:C5:86\r\na=setup:active\r\na=mid:0\r\na=extmap:14 urn:ietf:params:rtp-hdrext:toffset\r\na=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=extmap:13 urn:3gpp:video-orientation\r\na=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\na=extmap:12 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\na=extmap:11 http://www.webrtc.org/experiments/rtp-hdrext/video-content-type\r\na=extmap:7 http://www.webrtc.org/experiments/rtp-hdrext/video-timing\r\na=extmap:9 http://www.webrtc.org/experiments/rtp-hdrext/color-space\r\na=extmap:4 urn:ietf:params:rtp-hdrext:sdes:mid\r\na=extmap:5 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id\r\na=extmap:6 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id\r\na=recvonly\r\na=rtcp-mux\r\na=rtcp-rsize\r\na=rtpmap:96 H264/90000\r\na=rtcp-fb:96 goog-remb\r\na=rtcp-fb:96 transport-cc\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=fmtp:96 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\na=rtpmap:97 rtx/90000\r\na=fmtp:97 apt=96\r\na=rtpmap:98 red/90000\r\na=rtpmap:99 rtx/90000\r\na=fmtp:99 apt=98\r\na=rtpmap:100 ulpfec/90000\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111 110\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:5VeC\r\na=ice-pwd:jG+CvMaIrfHRJZEugwfkNs7O\r\na=ice-options:trickle\r\na=fingerprint:sha-256 8F:94:8C:92:C4:0A:E4:D7:ED:FB:24:CD:9B:75:AD:A3:BA:CE:A7:67:AA:34:EB:12:06:A5:BF:5D:B2:73:C5:86\r\na=setup:active\r\na=mid:1\r\na=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\na=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\na=extmap:4 urn:ietf:params:rtp-hdrext:sdes:mid\r\na=recvonly\r\na=rtcp-mux\r\na=rtpmap:111 opus/48000/2\r\na=rtcp-fb:111 transport-cc\r\na=fmtp:111 minptime=10;useinbandfec=1; stereo=1\r\na=rtpmap:110 telephone-event/48000\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\nc=IN IP4 0.0.0.0\r\na=ice-ufrag:5VeC\r\na=ice-pwd:jG+CvMaIrfHRJZEugwfkNs7O\r\na=ice-options:trickle\r\na=fingerprint:sha-256 8F:94:8C:92:C4:0A:E4:D7:ED:FB:24:CD:9B:75:AD:A3:BA:CE:A7:67:AA:34:EB:12:06:A5:BF:5D:B2:73:C5:86\r\na=setup:active\r\na=mid:2\r\na=sctp-port:5000\r\na=max-message-size:262144\r\n"}
+    //{"command":"takeConfiguration","streamId":"stream1","type":"answer","sdp":"v=0\r\no=- 4971157306988353964 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\na=group:BUNDLE 0 1 2\r\na=msid-semantic: WMS\r\nm=video 9 UDP/TLS/RTP/SAVPF 96 97 98 99 100\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:5VeC\r\na=ice-pwd:jG+CvMaIrfHRJZEugwfkNs7O\r\na=ice-options:trickle\r\na=fingerprint:sha-256 8F:94:8C:92:C4:0A:E4:D7:ED:FB:24:cd:9B:75:AD:A3:BA:CE:A7:67:AA:34:EB:12:06:A5:BF:5D:B2:73:C5:86\r\na=setup:active\r\na=mid:0\r\na=extmap:14 urn:ietf:params:rtp-hdrext:toffset\r\na=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=extmap:13 urn:3gpp:video-orientation\r\na=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\na=extmap:12 http://www.webrtc.org/experiments/rtp-hdrext/playout-delay\r\na=extmap:11 http://www.webrtc.org/experiments/rtp-hdrext/video-content-type\r\na=extmap:7 http://www.webrtc.org/experiments/rtp-hdrext/video-timing\r\na=extmap:9 http://www.webrtc.org/experiments/rtp-hdrext/color-space\r\na=extmap:4 urn:ietf:params:rtp-hdrext:sdes:mid\r\na=extmap:5 urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id\r\na=extmap:6 urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id\r\na=recvonly\r\na=rtcp-mux\r\na=rtcp-rsize\r\na=rtpmap:96 H264/90000\r\na=rtcp-fb:96 goog-remb\r\na=rtcp-fb:96 transport-cc\r\na=rtcp-fb:96 ccm fir\r\na=rtcp-fb:96 nack\r\na=rtcp-fb:96 nack pli\r\na=fmtp:96 level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f\r\na=rtpmap:97 rtx/90000\r\na=fmtp:97 apt=96\r\na=rtpmap:98 red/90000\r\na=rtpmap:99 rtx/90000\r\na=fmtp:99 apt=98\r\na=rtpmap:100 ulpfec/90000\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111 110\r\nc=IN IP4 0.0.0.0\r\na=rtcp:9 IN IP4 0.0.0.0\r\na=ice-ufrag:5VeC\r\na=ice-pwd:jG+CvMaIrfHRJZEugwfkNs7O\r\na=ice-options:trickle\r\na=fingerprint:sha-256 8F:94:8C:92:C4:0A:E4:D7:ED:FB:24:cd:9B:75:AD:A3:BA:CE:A7:67:AA:34:EB:12:06:A5:BF:5D:B2:73:C5:86\r\na=setup:active\r\na=mid:1\r\na=extmap:1 urn:ietf:params:rtp-hdrext:ssrc-audio-level\r\na=extmap:2 http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time\r\na=extmap:3 http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01\r\na=extmap:4 urn:ietf:params:rtp-hdrext:sdes:mid\r\na=recvonly\r\na=rtcp-mux\r\na=rtpmap:111 opus/48000/2\r\na=rtcp-fb:111 transport-cc\r\na=fmtp:111 minptime=10;useinbandfec=1; stereo=1\r\na=rtpmap:110 telephone-event/48000\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\nc=IN IP4 0.0.0.0\r\na=ice-ufrag:5VeC\r\na=ice-pwd:jG+CvMaIrfHRJZEugwfkNs7O\r\na=ice-options:trickle\r\na=fingerprint:sha-256 8F:94:8C:92:C4:0A:E4:D7:ED:FB:24:cd:9B:75:AD:A3:BA:CE:A7:67:AA:34:EB:12:06:A5:BF:5D:B2:73:C5:86\r\na=setup:active\r\na=mid:2\r\na=sctp-port:5000\r\na=max-message-size:262144\r\n"}
     /* Send answer to peer */
     sdp_text = gst_sdp_message_as_text(answer->sdp);
     printf("answer : %s", sdp_text);
@@ -157,7 +155,7 @@ on_incoming_stream(GstElement *webrtc, GstPad *pad)
     caps = gst_pad_get_current_caps(pad);
     mediatype = gst_structure_get_string(gst_caps_get_structure(caps, 0), "media");
     printf("%s %s", gst_caps_to_string(caps), mediatype);
-    printf("--------------------------%s stream recived ----------------------------------",mediatype);
+    printf("--------------------------%s stream recived ----------------------------------", mediatype);
 
     if (g_str_has_prefix(mediatype, "video"))
     {
@@ -215,7 +213,7 @@ static void on_offer_created(GstPromise *promise, const gchar *stream_id)
     JsonObject *play_stream;
     play_stream = json_object_new();
     json_object_set_string_member(play_stream, "command", "takeConfiguration");
-    json_object_set_string_member(play_stream, "streamId",stream_id);
+    json_object_set_string_member(play_stream, "streamId", stream_id);
     json_object_set_string_member(play_stream, "type", "offer");
     json_object_set_string_member(play_stream, "sdp", sdp_string);
     json_string = get_string_from_json_object(play_stream);
@@ -389,7 +387,7 @@ static void on_socket_connected(rws_socket socket)
     printf("websocket connected");
     gchar *json_string;
     JsonArray *array = json_array_new();
-    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink " SCREEN   VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
+    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink " SCREEN VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
 
     gst_element_set_state(gst_pipe, GST_STATE_READY);
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);
@@ -406,7 +404,6 @@ static void on_socket_connected(rws_socket socket)
     }
     else
     {
-
         JsonObject *play_stream = json_object_new();
         create_webrtc("stream1", NULL);
         json_object_set_string_member(play_stream, "command", "play");
@@ -416,7 +413,6 @@ static void on_socket_connected(rws_socket socket)
         json_string = get_string_from_json_object(play_stream);
         rws_socket_send_text(socket, json_string);
     }
-
 }
 
 static void websocket_connect()
@@ -425,7 +421,7 @@ static void websocket_connect()
     g_assert(_socket);
     rws_socket_set_scheme(_socket, "ws");
     rws_socket_set_host(_socket, ws_server_addr);
-    rws_socket_set_path(_socket, "/LiveApp/websocket");
+    rws_socket_set_path(_socket, "/WebRTCAppEE/websocket");
     rws_socket_set_port(_socket, ws_server_port);
     rws_socket_set_on_disconnected(_socket, &on_socket_disconnected);
     rws_socket_set_on_received_text(_socket, &on_socket_received_text);
@@ -441,6 +437,22 @@ gint main(gint argc, gchar **argv)
 {
     static GMainLoop *main_loop;
     gst_init(&argc, &argv);
+
+    GError *error = NULL;
+    GOptionContext *context;
+    context = g_option_context_new("- Antmedia Webrtc Publish and Play");
+    g_option_context_add_main_entries(context, entries, NULL);
+    if (!g_option_context_parse(context, &argc, &argv, &error))
+    {
+        g_print("option parsing failed: %s\n", error->message);
+        exit(1);
+    }
+    if(strcmp(mode,"play")==0){
+        is_sender=FALSE;
+    }
+
+    printf("start %s %s",ws_server_addr,mode);
+
     main_loop = g_main_loop_new(NULL, FALSE);
     websocket_connect();
     g_main_loop_run(main_loop);

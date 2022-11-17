@@ -20,8 +20,8 @@
 #include <gst/gst.h>
 #include <gst/webrtc/webrtc.h>
 #include <json-glib/json-glib.h>
-
 #include "librws.h"
+
 _Bool  is_sender = TRUE;
 GstElement *gst_pipe;
 static gchar *ws_server_addr = "";
@@ -381,7 +381,7 @@ static void on_socket_disconnected(rws_socket socket)
 
 static void on_socket_connected(rws_socket socket)
 {
-    // player  {"command":"play","streamId":"stream1","room":"","trackList":[]}
+    // player     {"command":"play","streamId":"stream1","room":"","trackList":[]}
     // Publisher  {"command":"publish","streamId":"stream1","video":true,"audio":true}
 
     printf("websocket connected");

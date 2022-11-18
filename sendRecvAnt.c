@@ -1,31 +1,37 @@
+#if __APPLE__
+#define VIDEO_SINK "osxaudiosink"
+#else 
+#define VIDEO_SINK "autovideosink"
+#endif
 #define GST_USE_UNSTABLE_API
 #define STUN_SERVER "stun://stun.l.google.com:19302"
 #define AUDIO_ENCODE "  ! audioconvert ! audioresample   ! opusenc bitrate=192000  ! rtpopuspay "
 #define VIDEO_ENCODE " ! timeoverlay time-mode=2 halignment=right valignment=bottom   ! videoconvert ! video/x-raw,format=I420 ! x264enc  speed-preset=3 tune=zerolatency ! rtph264pay  "
 #define RTP_CAPS_H264 "application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000"
-
 #include <stdlib.h>
 #include <glib.h>
 #include <gst/gst.h>
 #include <gst/webrtc/webrtc.h>
 #include <json-glib/json-glib.h>
 #include "librws.h"
-_Bool  is_sender = TRUE;
+_Bool is_sender = TRUE;
 GstElement *gst_pipe;
 static gchar *ws_server_addr = "";
 static gint ws_server_port = 5080;
 static rws_socket _socket = NULL;
 gchar *streamsrc = "camera";
 gchar *vencoding = "h264";
-gchar *mode="publish";
+gchar *mode = "publish";
 gchar *play_streamids;
+gchar *security = "ws";
 static GOptionEntry entries[] =
     {
         {"ip", 's', 0, G_OPTION_ARG_STRING, &ws_server_addr, "ip address of antmedia server", NULL},
-        {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port", NULL},
-     //   {"streamsrc", 0, 0, G_OPTION_ARG_STRING, &streamsrc, "src of the video , camara or screen", NULL},
-        {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "true for publish mode and false play mode default True", NULL},
-     //   {"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
+        {"security", 0, 0, G_OPTION_ARG_STRING, &security, "pass wss for secure and ws for unsecure connections default : ws", NULL},
+        {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port default : 5080", NULL},
+        //   {"streamsrc", 0, 0, G_OPTION_ARG_STRING, &streamsrc, "src of the video , camara or screen", NULL},
+        {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "should be true for publish mode and false for play mode default true", NULL},
+        //   {"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
         {"streamids", 'i', 0, G_OPTION_ARG_STRING, &play_streamids, "enter comma , seprated stream Ids to Play", NULL},
         {NULL}};
 static gchar *get_string_from_json_object(JsonObject *object)
@@ -43,8 +49,7 @@ static gchar *get_string_from_json_object(JsonObject *object)
     json_node_free(root);
     return text;
 }
-static void
-on_answer_created(GstPromise *promise, gpointer webrtcbin_id)
+static void on_answer_created(GstPromise *promise, gpointer webrtcbin_id)
 {
     gchar *sdp_text;
     JsonObject *sdp_answer_json;
@@ -151,7 +156,7 @@ on_incoming_stream(GstElement *webrtc, GstPad *pad)
         depay = gst_element_factory_make("rtph264depay", NULL);
         parse = gst_element_factory_make("h264parse", NULL);
         convert_name = "videoconvert";
-        sink_name = "autovideosink";
+        sink_name = VIDEO_SINK;
     }
     else if (g_str_has_prefix(mediatype, "audio"))
     {
@@ -265,18 +270,13 @@ static void create_webrtc(gchar *webrtcbin_id, GstWebRTCSessionDescription *offe
         g_assert_true(ret);
         ret = gst_element_sync_state_with_parent(webrtc);
         g_assert_true(ret);
-        rtpbin = gst_bin_get_by_name(GST_BIN(webrtc), "rtpbin");
-        g_object_set(G_OBJECT(rtpbin), "buffer-mode", 0, NULL);
-
         g_signal_connect(webrtc, "on-negotiation-needed", G_CALLBACK(on_negotiation_needed), NULL);
-        printf("fdsssssssssssssssssssssssssssssssssssssssssssss");
 
         return;
     }
-    else
-    {
+
         g_signal_connect(webrtc, "pad-added", G_CALLBACK(on_incoming_stream), NULL);
-    }
+    
 }
 void on_socket_received_text(rws_socket socket, const char *text, const unsigned int length)
 {
@@ -375,7 +375,7 @@ static void on_socket_connected(rws_socket socket)
     printf("websocket connected");
     gchar *json_string;
     JsonArray *array = json_array_new();
-    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink videotestsrc"  VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
+    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink videotestsrc" VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
 
     gst_element_set_state(gst_pipe, GST_STATE_READY);
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);
@@ -393,6 +393,7 @@ static void on_socket_connected(rws_socket socket)
     else
     {
         JsonObject *play_stream = json_object_new();
+
         create_webrtc("stream1", NULL);
         json_object_set_string_member(play_stream, "command", "play");
         json_object_set_string_member(play_stream, "streamId", "stream1");
@@ -407,7 +408,7 @@ static void websocket_connect()
 {
     _socket = rws_socket_create(); // create and store socket handle
     g_assert(_socket);
-    rws_socket_set_scheme(_socket, "ws");
+    rws_socket_set_scheme(_socket, security);
     rws_socket_set_host(_socket, ws_server_addr);
     rws_socket_set_path(_socket, "/WebRTCAppEE/websocket");
     rws_socket_set_port(_socket, ws_server_port);
@@ -435,11 +436,12 @@ gint main(gint argc, gchar **argv)
         g_print("option parsing failed: %s\n", error->message);
         exit(1);
     }
-    if(strcmp(mode,"play")==0){
-        is_sender=FALSE;
+    if (strcmp(mode, "play") == 0)
+    {
+        is_sender = FALSE;
     }
 
-    printf("start %s %s",ws_server_addr,mode);
+    printf("start %s %s", ws_server_addr, mode);
 
     main_loop = g_main_loop_new(NULL, FALSE);
     websocket_connect();
@@ -447,3 +449,5 @@ gint main(gint argc, gchar **argv)
     g_main_loop_unref(main_loop);
     return 0;
 }
+
+

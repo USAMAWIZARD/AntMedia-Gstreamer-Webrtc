@@ -15,24 +15,22 @@
 #include <json-glib/json-glib.h>
 #include "librws.h"
 _Bool is_sender = TRUE;
-GstElement *gst_pipe;
+GstElement *gst_pipe; 
 static gchar *ws_server_addr = "";
 static gint ws_server_port = 5080;
 static rws_socket _socket = NULL;
 gchar *streamsrc = "camera";
 gchar *vencoding = "h264";
 gchar *mode = "publish";
-gchar *play_streamids;
-gchar *security = "ws";
+gchar **play_streamids=NULL;
 static GOptionEntry entries[] =
     {
         {"ip", 's', 0, G_OPTION_ARG_STRING, &ws_server_addr, "ip address of antmedia server", NULL},
-        {"security", 0, 0, G_OPTION_ARG_STRING, &security, "pass wss for secure and ws for unsecure connections default : ws", NULL},
         {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port default : 5080", NULL},
-        //   {"streamsrc", 0, 0, G_OPTION_ARG_STRING, &streamsrc, "src of the video , camara or screen", NULL},
+        //{"streamsrc", 0, 0, G_OPTION_ARG_STRING, &streamsrc, "src of the video , camara or screen", NULL},
         {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "should be true for publish mode and false for play mode default true", NULL},
-        //   {"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
-        {"streamids", 'i', 0, G_OPTION_ARG_STRING, &play_streamids, "enter comma , seprated stream Ids to Play", NULL},
+        //{"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
+        {"streamids", 'i', 0, G_OPTION_ARG_STRING_ARRAY, &play_streamids, "you can pass n number of streamid to play like this -i streamid -i streamid ....", NULL},
         {NULL}};
 static gchar *get_string_from_json_object(JsonObject *object)
 {
@@ -172,15 +170,16 @@ on_incoming_stream(GstElement *webrtc, GstPad *pad)
     }
 
     rtpjitterbuffer = gst_element_factory_make("rtpjitterbuffer", NULL);
-    g_object_set(G_OBJECT(rtpjitterbuffer), "mode", 0);
     gst_bin_add_many(GST_BIN(gst_pipe), rtpjitterbuffer, depay, parse, decode, NULL);
-    sinkpad = gst_element_get_static_pad(depay, "sink");
+    sinkpad = gst_element_get_static_pad(rtpjitterbuffer, "sink");
     g_assert(gst_pad_link(pad, sinkpad) == GST_PAD_LINK_OK);
-    gst_element_link_many(depay, parse, decode, NULL);
+    gst_element_link_many(rtpjitterbuffer,depay, parse, decode, NULL);
     decoded_pad = gst_element_get_static_pad(decode, "src");
     gst_element_sync_state_with_parent(depay);
     gst_element_sync_state_with_parent(parse);
     gst_element_sync_state_with_parent(decode);
+    gst_element_sync_state_with_parent(rtpjitterbuffer);
+
     handle_media_stream(decoded_pad, gst_pipe, convert_name, sink_name);
 }
 static void on_offer_created(GstPromise *promise, const gchar *stream_id)
@@ -255,7 +254,7 @@ static void create_webrtc(gchar *webrtcbin_id, GstWebRTCSessionDescription *offe
         gst_object_unref(srcpad);
         gst_object_unref(sinkpad);
 
-        tee = gst_bin_get_by_name(GST_BIN(gst_pipe), "audiotee");
+        tee = gst_bin_get_by_name(GST_BIN(gst_pipe), "tee");
         g_assert_nonnull(tee);
         srcpad = gst_element_request_pad_simple(tee, "src_%u");
         g_assert_nonnull(srcpad);
@@ -270,7 +269,7 @@ static void create_webrtc(gchar *webrtcbin_id, GstWebRTCSessionDescription *offe
         g_assert_true(ret);
         ret = gst_element_sync_state_with_parent(webrtc);
         g_assert_true(ret);
-        g_signal_connect(webrtc, "on-negotiation-needed", G_CALLBACK(on_negotiation_needed), NULL);
+        g_signal_connect(webrtc, "on-negotiation-needed", G_CALLBACK(on_negotiation_needed  ), NULL);
 
         return;
     }
@@ -375,14 +374,13 @@ static void on_socket_connected(rws_socket socket)
     printf("websocket connected");
     gchar *json_string;
     JsonArray *array = json_array_new();
-    gst_pipe = gst_parse_launch(" tee name=audiotee ! queue ! fakesink videotestsrc" VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! audiotee. ", NULL);
+    gst_pipe = gst_parse_launch(" tee name=tee ! queue ! fakesink videotestsrc" VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! tee. ", NULL);
 
     gst_element_set_state(gst_pipe, GST_STATE_READY);
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);
     if (is_sender)
     {
         JsonObject *publish_stream = json_object_new();
-
         json_object_set_string_member(publish_stream, "command", "publish");
         json_object_set_string_member(publish_stream, "streamId", "stream1");
         json_object_set_boolean_member(publish_stream, "video", TRUE);
@@ -391,16 +389,19 @@ static void on_socket_connected(rws_socket socket)
         rws_socket_send_text(socket, json_string);
     }
     else
-    {
+    {     
+        if(play_streamids==NULL)
+        printf(" \n plese enter pass streamid as argument -i streamid -i streamid  ....\n");  
+        for (int i = 0; play_streamids[i]; i++) {
         JsonObject *play_stream = json_object_new();
-
-        create_webrtc("stream1", NULL);
+        create_webrtc(play_streamids[i], NULL);
         json_object_set_string_member(play_stream, "command", "play");
-        json_object_set_string_member(play_stream, "streamId", "stream1");
+        json_object_set_string_member(play_stream, "streamId",play_streamids[i]);
         json_object_set_string_member(play_stream, "room", "");
         json_object_set_array_member(play_stream, "trackList", array);
         json_string = get_string_from_json_object(play_stream);
         rws_socket_send_text(socket, json_string);
+        }
     }
 }
 
@@ -408,7 +409,7 @@ static void websocket_connect()
 {
     _socket = rws_socket_create(); // create and store socket handle
     g_assert(_socket);
-    rws_socket_set_scheme(_socket, security);
+    rws_socket_set_scheme(_socket, "ws");
     rws_socket_set_host(_socket, ws_server_addr);
     rws_socket_set_path(_socket, "/WebRTCAppEE/websocket");
     rws_socket_set_port(_socket, ws_server_port);
@@ -441,7 +442,7 @@ gint main(gint argc, gchar **argv)
         is_sender = FALSE;
     }
 
-    printf("start %s %s", ws_server_addr, mode);
+    printf("start %s %s %d ", ws_server_addr, mode,ws_server_port);
 
     main_loop = g_main_loop_new(NULL, FALSE);
     websocket_connect();

@@ -391,7 +391,7 @@ static void on_socket_connected(rws_socket socket)
     else
     {     
         if(play_streamids==NULL)
-        printf(" \n plese enter pass streamid as argument -i streamid -i streamid  ....\n");  
+        printf(" \n plese pass streamid as argument which you want to play example : -i streamid -i streamid  ....\n");  
         for (int i = 0; play_streamids[i]; i++) {
         JsonObject *play_stream = json_object_new();
         create_webrtc(play_streamids[i], NULL);
@@ -430,7 +430,7 @@ gint main(gint argc, gchar **argv)
 
     GError *error = NULL;
     GOptionContext *context;
-    context = g_option_context_new("- Antmedia Webrtc Publish and Play");
+    context = g_option_context_new("- Gstreamer Antmedia Webrtc Publish and Play");
     g_option_context_add_main_entries(context, entries, NULL);
     if (!g_option_context_parse(context, &argc, &argv, &error))
     {

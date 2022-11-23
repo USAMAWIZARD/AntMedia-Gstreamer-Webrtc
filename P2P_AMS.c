@@ -27,7 +27,7 @@ static GOptionEntry entries[] =
     {
         {"ip", 's', 0, G_OPTION_ARG_STRING, &ws_server_addr, "ip address of antmedia server", NULL},
         {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port default : 5080", NULL},
-        {"id", 'i', 0, G_OPTION_ARG_STRING, &ws_server_addr, "stream ID name that you want to join", NULL},
+        {"id", 'i', 0, G_OPTION_ARG_STRING, &stream_id, "stream ID name that you want to join", NULL},
 
         {NULL}};
 static gchar *get_string_from_json_object(JsonObject *object)

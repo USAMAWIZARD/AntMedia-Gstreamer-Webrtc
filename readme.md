@@ -9,17 +9,16 @@ apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libgstreame
 
 ### Windows :
 
-There are two installer binaries gstreamer-1.0 and gstreamer-devel make sure you install both of them
+There are two installer binaries gstreamer-1.0 and gstreamer-devel make sure you install both of them <br>
 
 download the windows  installer from https://gstreamer.freedesktop.org/download/#windows
 
 ### Mac :
 
-There are two installer binaries gstreamer-1.0 and gstreamer-devel make sure you install both of them
+There are two installer binaries gstreamer-1.0 and gstreamer-devel make sure you install both of them <br>
 
-download the Mac installer from https://gstreamer.freedesktop.org/download/#macos
-Add to path 
-``` export  PKG_CONFIG_PATH="/Library/Frameworks/GStreamer.framework/Versions/Current/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" ```
+download the Mac installer from https://gstreamer.freedesktop.org/download/#macos <br>
+Add to path ``` export  PKG_CONFIG_PATH="/Library/Frameworks/GStreamer.framework/Versions/Current/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" ```
 
 
 ## Build and Examples

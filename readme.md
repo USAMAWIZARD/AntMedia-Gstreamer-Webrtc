@@ -28,7 +28,7 @@ I have supplied binaries of compiled websocket libraries for winx86_64 , macos (
 ## Compiling src code Linux
 ``` gcc File_Name.c  -o  File_Name  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/Linux_librws_static.a ```
 ## Compiling src code on Mac
-``` gcc File_Name.c  -o  File_Name  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./mac_m1_librws_static.a ```
+``` gcc File_Name.c  -o  File_Name  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/mac_m1_librws_static.a ```
 
 
 ## Running peer to peer Example 

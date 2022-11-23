@@ -34,8 +34,8 @@ I have supplied binaries of compiled websocket libraries for winx86_64 , macos (
 
 ## Running peer to peer Example 
 Two peers will connect in p2p mode with Bi-Directional audio video stream
-```./sendRecvAnt  --ip AMS_IP --streamid streamid ```
-```./sendRecvAnt  --ip AMS_IP --streamid streamid ```
+On first peer ```./sendRecvAnt  --ip AMS_IP --streamid streamid ``` <br>
+On second peer ```./sendRecvAnt  --ip AMS_IP --streamid streamid ``` <br>
 
 ## Running Send Recv Example
 We can either send or recive streams from AMS 

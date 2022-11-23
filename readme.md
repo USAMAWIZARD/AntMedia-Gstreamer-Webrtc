@@ -44,8 +44,8 @@ We can either send or recive streams from AMS
 video stream with id stream1 will be send to AMS
 ``` sendRecvAnt --ip AMS_IP ```<br>
 #### receiving stream:
-will recive stream with id stream1 in Gstreamer 
-``` sendRecvAnt --ip AMS_IP --mode play -i stream1 ```<br>
+will recive stream with id stream1 in Gstreamer  <br>
+``` sendRecvAnt --ip AMS_IP --mode play -i stream1 ``` <br>
 you can also specifie N number of stream ids  like this to recive multiple streams <br>
 ``` sendRecvAnt --ip AMS_IP --mode play -i stream1 -i stream2 -i stream3 ```
 

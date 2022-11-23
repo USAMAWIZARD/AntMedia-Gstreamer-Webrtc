@@ -21,7 +21,7 @@ download the Mac installer from https://gstreamer.freedesktop.org/download/#maco
 Add to path ``` export  PKG_CONFIG_PATH="/Library/Frameworks/GStreamer.framework/Versions/Current/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" ```
 
 
-## Build and Examples
+## Build and Running Examples
 
 I have supplied binaries of compiled websocket libraries for winx86_64 , macos (m1) and linux(x86_64) in libs directory you can compile the websocket library by yourself from [here](https://github.com/OlehKulykov/librws) if you are using some other operating system or CPU architecture.
 

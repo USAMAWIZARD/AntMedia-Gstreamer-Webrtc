@@ -40,7 +40,7 @@ On second peer ```./sendRecvAnt  --ip AMS_IP --streamid streamid ``` <br>
 We can either send or recive streams from AMS 
 
 #### sending stream To AMS from gstreamer 
-video stream with id stream1 will be send to AMS
+video stream with id stream1 will be send to AMS <br>
 ``` sendRecvAnt --ip AMS_IP ```<br>
 #### receiving stream:
 will recive stream with id stream1 in Gstreamer  <br>

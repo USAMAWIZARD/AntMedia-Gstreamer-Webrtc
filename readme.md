@@ -25,7 +25,7 @@ Add to path ``` export  PKG_CONFIG_PATH="/Library/Frameworks/GStreamer.framewor
 
 I have supplied binaries of compiled websocket libraries for winx86_64 , macos (m1) and linux(x86_64) in libs directory you can compile the websocket library by yourself from [here](https://github.com/OlehKulykov/librws) if you are using some other operating system or CPU architecture.
 
-## Compiling src code Linux
+## Compiling src code on Linux
 ``` gcc File_Name.c  -o  File_Name  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/Linux_librws_static.a ```
 ## Compiling src code on Mac
 ``` gcc File_Name.c  -o  File_Name  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/mac_m1_librws_static.a ```

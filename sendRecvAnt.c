@@ -267,6 +267,7 @@ static void create_webrtc(gchar *webrtcbin_id, GstWebRTCSessionDescription *offe
     g_assert_cmpint(ret, ==, GST_PAD_LINK_OK);
     gst_object_unref(srcpad);
     gst_object_unref(sinkpad);
+    
     tee = gst_bin_get_by_name(GST_BIN(gst_pipe), "audio_tee");
     g_assert_nonnull(tee);
     srcpad = gst_element_request_pad_simple(tee, "src_%u"); // linking audio to webrtc element
@@ -400,6 +401,10 @@ static void on_socket_connected(rws_socket socket)
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);
     if (g_strcmp0(mode, "p2p") == 0)
     {
+        if (play_streamids == NULL){
+            printf(" \n please pass streamid as argument which you want to play example : -i streamid -i streamid  ....\n");
+            exit(0);
+        }
         JsonObject *publish_stream = json_object_new();
         json_object_set_string_member(publish_stream, "command", "join");
         json_object_set_string_member(publish_stream, "streamId", play_streamids[0]);

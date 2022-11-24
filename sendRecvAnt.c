@@ -474,7 +474,11 @@ gint main(gint argc, gchar **argv)
         g_print("option parsing failed: %s\n", error->message);
         exit(1);
     }
-
+    if (g_strcmp0(ws_server_addr, "") == 0)
+    {
+        printf("please enter the ws server  ip address --ip IP_ADDRESS");
+        exit(0);
+    }
 
     printf("start %s  %d ", ws_server_addr, ws_server_port);
 

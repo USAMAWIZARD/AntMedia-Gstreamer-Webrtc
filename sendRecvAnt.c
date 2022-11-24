@@ -7,9 +7,9 @@
 #define STUN_SERVER "stun://stun.l.google.com:19302"
 #define TURN_SERVER ""
 #define AUDIO_ENCODE "  ! audioconvert ! audioresample   ! opusenc bitrate=192000  ! rtpopuspay "
-#define VIDEO_ENCODE " ! timeoverlay time-mode=2 halignment=right valignment=bottom   ! videoconvert ! video/x-raw,format=I420 ! x264enc  speed-preset=3 tune=zerolatency ! rtph264pay  "
-#define RTP_CAPS_H264 "application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000"
-#define RTP_CAPS_OPUS "application/x-rtp,media=audio,encoding-name=OPUS,payload=97"
+#define VIDEO_ENCODE " ! timeoverlay time-mode=2 halignment=right valignment=bottom   ! videoconvert ! video/x-raw,format=I420 ! x264enc  speed-preset=3 tune=zerolatency ! rtph264pay "
+#define RTP_CAPS_H264 " application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000 "
+#define RTP_CAPS_OPUS " application/x-rtp,media=audio,encoding-name=OPUS,payload=97 "
 
 #include <stdlib.h>
 #include <glib.h>
@@ -17,6 +17,7 @@
 #include <gst/webrtc/webrtc.h>
 #include <json-glib/json-glib.h>
 #include "librws.h"
+#define filename "test.mp4"
 gboolean is_joined = FALSE;
 GstElement *gst_pipe;
 static gchar *ws_server_addr = "";
@@ -396,7 +397,10 @@ static void on_socket_connected(rws_socket socket)
     printf("websocket connected");
     gchar *json_string;
     JsonArray *array = json_array_new();
-    gst_pipe = gst_parse_launch(" tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true videotestsrc is-live=true " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. audiotestsrc  is-live=true wave=red-noise " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ", NULL);
+
+    gst_pipe = gst_parse_launch(" tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true filesrc location="filename " ! qtdemux name=demuxtee  demuxtee. ! decodebin " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. demuxtee. ! decodebin " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ", NULL);
+    // gst_pipe = gst_parse_launch(" tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true videotestsrc is-live=true " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. audiotestsrc  is-live=true wave=red-noise " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ", NULL);
+
     gst_element_set_state(gst_pipe, GST_STATE_READY);
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);
     if (g_strcmp0(mode, "p2p") == 0)

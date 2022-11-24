@@ -1,4 +1,10 @@
 # Gstreamer Antmedia Webrtc Connection
+This program will help you to connect AntMedia to Gstreamer.
+There are three modes available.
+1. you can connect two peers with each other in p2p mode using AMS server.
+2. you can publish a audio video streams to AMS from gstreamer in publish mode
+3. you can play the streams in gstreamer in play mode.
+
 ## How to install Gstreamer :
 ### Ubuntu : 
 
@@ -31,7 +37,7 @@ I have supplied binaries of compiled websocket libraries for winx86_64 , macos (
 ``` gcc ./sendRecvAnt.c  -o  sendRecvAnt  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/mac_m1_librws_static.a ```
 
 
-## Running in peer to peer  Mode
+## peer to peer  Mode
 Two peers will connect in p2p mode with Bi-Directional audio video stream <br>
 On first peer ```./sendRecvAnt --mode p2p --ip AMS_IP --streamid streamid ``` <br>
 On second peer ```./sendRecvAnt --mode p2p --ip AMS_IP --streamid streamid ``` <br>
@@ -39,12 +45,12 @@ On second peer ```./sendRecvAnt --mode p2p --ip AMS_IP --streamid streamid ``` <
 ## Send or receive from gstreamer to AMS Server 
 We can either send or receive streams from gstreamer to  AMS 
 
-#### sending stream To AMS from gstreamer 
+#### sending stream To AMS from gstreamer  
 video stream with id stream1 will be send to AMS <br>
 ``` sendRecvAnt --ip AMS_IP ```<br>
-#### receiving stream:
-will recive stream with id stream1 in Gstreamer  <br>
+#### receiving stream In Gstreamer from AMS:
+will receive  stream with id stream1 in Gstreamer  <br>
 ``` sendRecvAnt --ip AMS_IP --mode play -i stream1 ``` <br>
-you can also specifie N number of stream ids  like this to recive multiple streams <br>
+you can also specifie N number of stream ids  like this to receive multiple streams <br>
 ``` sendRecvAnt --ip AMS_IP --mode play -i stream1 -i stream2 -i stream3 ```
 

@@ -405,7 +405,7 @@ static void on_socket_connected(rws_socket socket)
     gst_pipe = gst_parse_launch(" tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true videotestsrc is-live=true " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. audiotestsrc  is-live=true wave=red-noise " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ", NULL);
     }
     else{
-    printf("videotest sharing");
+    printf("file  sharing");
 
     sprintf(pipeline_str," tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true filesrc location=%s  ! qtdemux name=demuxtee  demuxtee. ! decodebin " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. demuxtee. ! decodebin " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ",filename);
     gst_pipe = gst_parse_launch(pipeline_str, NULL);

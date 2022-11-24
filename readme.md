@@ -42,6 +42,8 @@ Two peers will connect in p2p mode with Bi-Directional audio video stream <br>
 On first peer ```./sendRecvAnt --mode p2p --ip AMS_IP --streamid streamid ``` <br>
 On second peer ```./sendRecvAnt --mode p2p --ip AMS_IP --streamid streamid ``` <br>
 
+by default videotest src will be streamed if you want to use a file for streaming please specify file name with as -f test.mp4<br>
+only mp4 file will work
 ## Send or receive Streams from gstreamer to AMS Server 
 We can either send or receive streams from gstreamer to  AMS 
 
@@ -53,4 +55,3 @@ will receive  stream with id stream1 in Gstreamer  <br>
 ``` sendRecvAnt --ip AMS_IP --mode play -i stream1 ``` <br>
 you can also specifie N number of stream ids  like this to receive multiple streams <br>
 ``` sendRecvAnt --ip AMS_IP --mode play -i stream1 -i stream2 -i stream3 ``` and so on
-

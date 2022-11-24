@@ -17,7 +17,7 @@
 #include <gst/webrtc/webrtc.h>
 #include <json-glib/json-glib.h>
 #include "librws.h"
-#define filename "test.mp4"
+
 gboolean is_joined = FALSE;
 GstElement *gst_pipe;
 static gchar *ws_server_addr = "";
@@ -25,11 +25,13 @@ static gint ws_server_port = 5080;
 static rws_socket _socket = NULL;
 gchar *mode = "publish";
 gchar **play_streamids = NULL;
+gchar *filename = "";
+
 static GOptionEntry entries[] =
     {
         {"ip", 's', 0, G_OPTION_ARG_STRING, &ws_server_addr, "ip address of antmedia server", NULL},
         {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port default : 5080", NULL},
-        //{"streamsrc", 0, 0, G_OPTION_ARG_STRING, &streamsrc, "src of the video , camara or screen", NULL},
+        {"filename",'f', 0, G_OPTION_ARG_STRING, &filename, "specify file path which you want to stream", NULL},
         {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "should be true for publish mode and false for play mode default true", NULL},
         //{"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
         {"streamids", 'i', 0, G_OPTION_ARG_STRING_ARRAY, &play_streamids, "you can pass n number of streamid to play like this -i streamid -i streamid ....", NULL},
@@ -397,10 +399,17 @@ static void on_socket_connected(rws_socket socket)
     printf("websocket connected");
     gchar *json_string;
     JsonArray *array = json_array_new();
+    gchar pipeline_str[1000];
+    if(g_strcmp0(filename,"")==0){
+    printf("test video sharing");
+    gst_pipe = gst_parse_launch(" tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true videotestsrc is-live=true " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. audiotestsrc  is-live=true wave=red-noise " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ", NULL);
+    }
+    else{
+    printf("videotest sharing");
 
-    gst_pipe = gst_parse_launch(" tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true filesrc location="filename " ! qtdemux name=demuxtee  demuxtee. ! decodebin " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. demuxtee. ! decodebin " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ", NULL);
-    // gst_pipe = gst_parse_launch(" tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true videotestsrc is-live=true " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. audiotestsrc  is-live=true wave=red-noise " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ", NULL);
-
+    sprintf(pipeline_str," tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true filesrc location=%s  ! qtdemux name=demuxtee  demuxtee. ! decodebin " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. demuxtee. ! decodebin " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ",filename);
+    gst_pipe = gst_parse_launch(pipeline_str, NULL);
+    }
     gst_element_set_state(gst_pipe, GST_STATE_READY);
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);
     if (g_strcmp0(mode, "p2p") == 0)

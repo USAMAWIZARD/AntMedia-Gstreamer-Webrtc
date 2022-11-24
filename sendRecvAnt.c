@@ -1,28 +1,29 @@
 #if __APPLE__
 #define VIDEO_SINK "osxaudiosink"
-#else 
+#else
 #define VIDEO_SINK "autovideosink"
 #endif
 #define GST_USE_UNSTABLE_API
 #define STUN_SERVER "stun://stun.l.google.com:19302"
+#define TURN_SERVER ""
 #define AUDIO_ENCODE "  ! audioconvert ! audioresample   ! opusenc bitrate=192000  ! rtpopuspay "
 #define VIDEO_ENCODE " ! timeoverlay time-mode=2 halignment=right valignment=bottom   ! videoconvert ! video/x-raw,format=I420 ! x264enc  speed-preset=3 tune=zerolatency ! rtph264pay  "
 #define RTP_CAPS_H264 "application/x-rtp,media=video,encoding-name=H264,payload=96,clock-rate=90000"
+#define RTP_CAPS_OPUS "application/x-rtp,media=audio,encoding-name=OPUS,payload=97"
+
 #include <stdlib.h>
 #include <glib.h>
 #include <gst/gst.h>
 #include <gst/webrtc/webrtc.h>
 #include <json-glib/json-glib.h>
 #include "librws.h"
-_Bool is_sender = TRUE;
-GstElement *gst_pipe; 
+gboolean is_joined = FALSE;
+GstElement *gst_pipe;
 static gchar *ws_server_addr = "";
 static gint ws_server_port = 5080;
 static rws_socket _socket = NULL;
-gchar *streamsrc = "camera";
-gchar *vencoding = "h264";
 gchar *mode = "publish";
-gchar **play_streamids=NULL;
+gchar **play_streamids = NULL;
 static GOptionEntry entries[] =
     {
         {"ip", 's', 0, G_OPTION_ARG_STRING, &ws_server_addr, "ip address of antmedia server", NULL},
@@ -133,9 +134,7 @@ handle_media_stream(GstPad *pad, GstElement *gst_pipe, gchar *convert_name,
     ret = gst_pad_link(pad, qpad);
     g_assert_cmphex(ret, ==, GST_PAD_LINK_OK);
 }
-
-static void
-on_incoming_stream(GstElement *webrtc, GstPad *pad)
+void on_incoming_stream(GstElement *webrtc, GstPad *pad)
 {
     GstElement *decode, *depay, *parse, *rtpjitterbuffer;
     GstPad *sinkpad, *srcpad, *decoded_pad;
@@ -145,7 +144,6 @@ on_incoming_stream(GstElement *webrtc, GstPad *pad)
 
     caps = gst_pad_get_current_caps(pad);
     mediatype = gst_structure_get_string(gst_caps_get_structure(caps, 0), "media");
-    printf("%s %s", gst_caps_to_string(caps), mediatype);
     printf("--------------------------%s stream recived ----------------------------------", mediatype);
 
     if (g_str_has_prefix(mediatype, "video"))
@@ -173,7 +171,7 @@ on_incoming_stream(GstElement *webrtc, GstPad *pad)
     gst_bin_add_many(GST_BIN(gst_pipe), rtpjitterbuffer, depay, parse, decode, NULL);
     sinkpad = gst_element_get_static_pad(rtpjitterbuffer, "sink");
     g_assert(gst_pad_link(pad, sinkpad) == GST_PAD_LINK_OK);
-    gst_element_link_many(rtpjitterbuffer,depay, parse, decode, NULL);
+    gst_element_link_many(rtpjitterbuffer, depay, parse, decode, NULL);
     decoded_pad = gst_element_get_static_pad(decode, "src");
     gst_element_sync_state_with_parent(depay);
     gst_element_sync_state_with_parent(parse);
@@ -212,70 +210,85 @@ static void on_offer_created(GstPromise *promise, const gchar *stream_id)
     g_print("sending offer to %s", stream_id);
     printf("\n%s\n", json_string);
     rws_socket_send_text(_socket, json_string);
-
     gst_webrtc_session_description_free(offer);
 }
 static void
 on_negotiation_needed(GstElement *webrtc, gpointer user_data)
 {
     GstPromise *promise;
-    g_print("negosiation  needed");
+    g_print("negotiation  needed");
     gchar *to = gst_element_get_name(webrtc);
     promise = gst_promise_new_with_change_func((GstPromiseChangeFunc)on_offer_created, (gpointer)to, NULL);
     g_signal_emit_by_name(webrtc, "create-offer", NULL, promise);
 }
-static void create_webrtc(gchar *webrtcbin_id, GstWebRTCSessionDescription *offersdp)
+static void create_webrtc(gchar *webrtcbin_id, GstWebRTCSessionDescription *offersdp, gboolean send_offer)
 {
-    GstElement *tee, *q, *rtpbin, *webrtc;
+    GstElement *tee, *audio_q, *video_q, *webrtc;
     GstPad *sinkpad, *srcpad;
     GstPadLinkReturn ret;
     printf("created webrtc bin with id %s", webrtcbin_id);
     webrtc = gst_element_factory_make("webrtcbin", webrtcbin_id);
     g_assert(webrtc != NULL);
-    g_object_set(G_OBJECT(webrtc), "bundle-policy", GST_WEBRTC_BUNDLE_POLICY_MAX_BUNDLE, NULL);
-    g_object_set(G_OBJECT(webrtc), "stun-server", STUN_SERVER, NULL);
-    g_signal_connect(webrtc, "on-ice-candidate", G_CALLBACK(send_ice_candidate_message), webrtcbin_id);
 
+    g_object_set(G_OBJECT(webrtc), "bundle-policy", GST_WEBRTC_BUNDLE_POLICY_MAX_BUNDLE, NULL);
     // g_object_set(G_OBJECT(webrtc), "turn-server", TURN_SERVER, NULL);
+    g_object_set(G_OBJECT(webrtc), "stun-server", STUN_SERVER, NULL);
     gst_bin_add_many(GST_BIN(gst_pipe), webrtc, NULL);
 
-    //   set_delay(5); // all the offers should be recived in this  sec esle will fail
-    if (is_sender)
-    {
-        q = gst_element_factory_make("queue", NULL);
-        gst_bin_add_many(GST_BIN(gst_pipe), q, NULL);
+    video_q = gst_element_factory_make("queue", NULL);
+    gst_bin_add_many(GST_BIN(gst_pipe), video_q, NULL);
+    srcpad = gst_element_get_static_pad(video_q, "src");
+    g_assert_nonnull(srcpad);
+    sinkpad = gst_element_request_pad_simple(webrtc, "sink_%u"); // linking video to webrtc element
+    g_assert_nonnull(sinkpad);
+    ret = gst_pad_link(srcpad, sinkpad);
+    g_assert_cmpint(ret, ==, GST_PAD_LINK_OK);
+    gst_object_unref(srcpad);
+    gst_object_unref(sinkpad);
 
-        srcpad = gst_element_get_static_pad(q, "src");
-        g_assert_nonnull(srcpad);
-        sinkpad = gst_element_request_pad_simple(webrtc, "sink_%u");
-        g_assert_nonnull(sinkpad);
-        ret = gst_pad_link(srcpad, sinkpad);
-        g_assert_cmpint(ret, ==, GST_PAD_LINK_OK);
-        gst_object_unref(srcpad);
-        gst_object_unref(sinkpad);
+    tee = gst_bin_get_by_name(GST_BIN(gst_pipe), "video_tee");
+    g_assert_nonnull(tee);
+    srcpad = gst_element_request_pad_simple(tee, "src_%u"); // linking video to webrtc element
+    g_assert_nonnull(srcpad);
+    sinkpad = gst_element_get_static_pad(video_q, "sink");
+    g_assert_nonnull(sinkpad);
+    ret = gst_pad_link(srcpad, sinkpad);
+    g_assert_cmpint(ret, ==, GST_PAD_LINK_OK);
+    gst_object_unref(srcpad);
+    gst_object_unref(sinkpad);
 
-        tee = gst_bin_get_by_name(GST_BIN(gst_pipe), "tee");
-        g_assert_nonnull(tee);
-        srcpad = gst_element_request_pad_simple(tee, "src_%u");
-        g_assert_nonnull(srcpad);
-        sinkpad = gst_element_get_static_pad(q, "sink");
-        g_assert_nonnull(sinkpad);
-        ret = gst_pad_link(srcpad, sinkpad);
-        g_assert_cmpint(ret, ==, GST_PAD_LINK_OK);
-        gst_object_unref(srcpad);
-        gst_object_unref(sinkpad);
+    audio_q = gst_element_factory_make("queue", NULL);
+    gst_bin_add_many(GST_BIN(gst_pipe), audio_q, NULL);
+    srcpad = gst_element_get_static_pad(audio_q, "src");
+    g_assert_nonnull(srcpad);
+    sinkpad = gst_element_request_pad_simple(webrtc, "sink_%u"); // linking audio to webrtc element
+    g_assert_nonnull(sinkpad);
+    ret = gst_pad_link(srcpad, sinkpad);
+    g_assert_cmpint(ret, ==, GST_PAD_LINK_OK);
+    gst_object_unref(srcpad);
+    gst_object_unref(sinkpad);
+    tee = gst_bin_get_by_name(GST_BIN(gst_pipe), "audio_tee");
+    g_assert_nonnull(tee);
+    srcpad = gst_element_request_pad_simple(tee, "src_%u"); // linking audio to webrtc element
+    g_assert_nonnull(srcpad);
+    sinkpad = gst_element_get_static_pad(audio_q, "sink");
+    g_assert_nonnull(sinkpad);
+    ret = gst_pad_link(srcpad, sinkpad);
+    g_assert_cmpint(ret, ==, GST_PAD_LINK_OK);
+    gst_object_unref(srcpad);
+    gst_object_unref(sinkpad);
 
-        ret = gst_element_sync_state_with_parent(q);
-        g_assert_true(ret);
-        ret = gst_element_sync_state_with_parent(webrtc);
-        g_assert_true(ret);
-        g_signal_connect(webrtc, "on-negotiation-needed", G_CALLBACK(on_negotiation_needed  ), NULL);
+    g_signal_connect(webrtc, "on-ice-candidate", G_CALLBACK(send_ice_candidate_message), (gpointer)webrtcbin_id);
+    if (send_offer)
+        g_signal_connect(webrtc, "on-negotiation-needed", G_CALLBACK(on_negotiation_needed), (gpointer)NULL);
+    g_signal_connect(webrtc, "pad-added", G_CALLBACK(on_incoming_stream), NULL);
 
-        return;
-    }
-
-        g_signal_connect(webrtc, "pad-added", G_CALLBACK(on_incoming_stream), NULL);
-    
+    ret = gst_element_sync_state_with_parent(audio_q);
+    g_assert_true(ret);
+    ret = gst_element_sync_state_with_parent(video_q);
+    g_assert_true(ret);
+    ret = gst_element_sync_state_with_parent(webrtc);
+    g_assert_true(ret);
 }
 void on_socket_received_text(rws_socket socket, const char *text, const unsigned int length)
 {
@@ -305,7 +318,6 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
             type = json_object_get_string_member(object, "type");
             recived_sdp = json_object_get_string_member(object, "sdp");
             webrtcbin_id = json_object_get_string_member(object, "streamId");
-            g_print("andar aaya");
             g_print("%s\n", recived_sdp);
             ret = gst_sdp_message_new(&sdp);
             g_assert_cmphex(ret, ==, GST_SDP_OK);
@@ -315,11 +327,13 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
                 g_error("Could not parse SDP string\n");
                 exit(1);
             }
-            webrtc = gst_bin_get_by_name(GST_BIN(gst_pipe), webrtcbin_id);
-            g_assert_nonnull(webrtc);
 
             if (g_strcmp0(type, "offer") == 0)
             {
+                create_webrtc(webrtcbin_id, offersdp, FALSE);
+                webrtc = gst_bin_get_by_name(GST_BIN(gst_pipe), webrtcbin_id);
+                g_assert_nonnull(webrtc);
+
                 offersdp = gst_webrtc_session_description_new(GST_WEBRTC_SDP_TYPE_OFFER, sdp);
                 promise = gst_promise_new();
                 g_signal_emit_by_name(webrtc, "set-remote-description", offersdp, promise);
@@ -330,6 +344,10 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
             }
             else if (g_strcmp0(type, "answer") == 0)
             {
+
+                webrtc = gst_bin_get_by_name(GST_BIN(gst_pipe), webrtcbin_id);
+                g_assert_nonnull(webrtc);
+
                 answersdp = gst_webrtc_session_description_new(GST_WEBRTC_SDP_TYPE_ANSWER, sdp);
                 promise = gst_promise_new();
                 g_signal_emit_by_name(webrtc, "set-remote-description", answersdp, promise);
@@ -339,7 +357,7 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
         else if (g_strcmp0(msg_type, "start") == 0)
         {
             webrtcbin_id = json_object_get_string_member(object, "streamId");
-            create_webrtc(webrtcbin_id, offersdp);
+            create_webrtc(webrtcbin_id, offersdp, TRUE);
         }
 
         else if (g_strcmp0(msg_type, "takeCandidate") == 0)
@@ -350,6 +368,12 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
             webrtc = gst_bin_get_by_name(GST_BIN(gst_pipe), webrtcbin_id);
             g_assert_nonnull(webrtc);
             g_signal_emit_by_name(webrtc, "add-ice-candidate", 0, candidate);
+        }
+        else if (g_strcmp0(msg_type, "notification") == 0)
+        {
+            type = json_object_get_string_member(object, "definition");
+            if (g_strcmp0(type, "joined") == 0)
+                is_joined = TRUE;
         }
     }
 }
@@ -368,41 +392,54 @@ static void on_socket_disconnected(rws_socket socket)
 
 static void on_socket_connected(rws_socket socket)
 {
-    // player     {"command":"play","streamId":"stream1","room":"","trackList":[]}
-    // Publisher  {"command":"publish","streamId":"stream1","video":true,"audio":true}
-
     printf("websocket connected");
     gchar *json_string;
     JsonArray *array = json_array_new();
-    gst_pipe = gst_parse_launch(" tee name=tee ! queue ! fakesink videotestsrc" VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! tee. ", NULL);
-
+    gst_pipe = gst_parse_launch(" tee name=video_tee ! queue ! fakesink  sync=true  tee name=audio_tee ! queue ! fakesink sync=true videotestsrc is-live=true " VIDEO_ENCODE " ! " RTP_CAPS_H264 " !  queue ! video_tee. audiotestsrc  is-live=true wave=red-noise " AUDIO_ENCODE " ! " RTP_CAPS_OPUS " !  queue ! audio_tee. ", NULL);
     gst_element_set_state(gst_pipe, GST_STATE_READY);
     gst_element_set_state(gst_pipe, GST_STATE_PLAYING);
-    if (is_sender)
+    if (g_strcmp0(mode, "p2p") == 0)
     {
         JsonObject *publish_stream = json_object_new();
-        json_object_set_string_member(publish_stream, "command", "publish");
-        json_object_set_string_member(publish_stream, "streamId", "stream1");
-        json_object_set_boolean_member(publish_stream, "video", TRUE);
-        json_object_set_boolean_member(publish_stream, "audio", FALSE);
+        json_object_set_string_member(publish_stream, "command", "join");
+        json_object_set_string_member(publish_stream, "streamId", play_streamids[0]);
+        json_object_set_boolean_member(publish_stream, "multiPeer", FALSE);
+        json_object_set_string_member(publish_stream, "mode", "both");
         json_string = get_string_from_json_object(publish_stream);
         rws_socket_send_text(socket, json_string);
     }
-    else
-    {     
-        if(play_streamids==NULL)
-        printf(" \n plese pass streamid as argument which you want to play example : -i streamid -i streamid  ....\n");  
-        for (int i = 0; play_streamids[i]; i++) {
-        JsonObject *play_stream = json_object_new();
-        create_webrtc(play_streamids[i], NULL);
-        json_object_set_string_member(play_stream, "command", "play");
-        json_object_set_string_member(play_stream, "streamId",play_streamids[i]);
-        json_object_set_string_member(play_stream, "room", "");
-        json_object_set_array_member(play_stream, "trackList", array);
-        json_string = get_string_from_json_object(play_stream);
-        rws_socket_send_text(socket, json_string);
+    else if (g_strcmp0(mode, "play") == 0)
+    {
+        if (play_streamids == NULL){
+            printf(" \n please pass streamid as argument which you want to play example : -i streamid -i streamid  ....\n");
+            exit(0);
+        }
+        for (int i = 0; play_streamids[i]; i++)
+        {
+            JsonObject *play_stream = json_object_new();
+            json_object_set_string_member(play_stream, "command", "play");
+            json_object_set_string_member(play_stream, "streamId", play_streamids[i]);
+            json_object_set_string_member(play_stream, "room", "");
+            json_object_set_array_member(play_stream, "trackList", array);
+            json_string = get_string_from_json_object(play_stream);
+            rws_socket_send_text(socket, json_string);
         }
     }
+    else
+    {
+        if (play_streamids == NULL){
+            printf(" \n please pass streamid as argument which you want to publish example : -i streamid \n");
+            exit(0);
+        }
+        JsonObject *publish_stream = json_object_new();
+        json_object_set_string_member(publish_stream, "command", "publish");
+        json_object_set_string_member(publish_stream, "streamId", play_streamids[0]);
+        json_object_set_boolean_member(publish_stream, "video", TRUE);
+        json_object_set_boolean_member(publish_stream, "audio", TRUE);
+        json_string = get_string_from_json_object(publish_stream);
+        rws_socket_send_text(socket, json_string);
+    }
+
 }
 
 static void websocket_connect()
@@ -437,12 +474,9 @@ gint main(gint argc, gchar **argv)
         g_print("option parsing failed: %s\n", error->message);
         exit(1);
     }
-    if (strcmp(mode, "play") == 0)
-    {
-        is_sender = FALSE;
-    }
 
-    printf("start %s %s %d ", ws_server_addr, mode,ws_server_port);
+
+    printf("start %s  %d ", ws_server_addr, ws_server_port);
 
     main_loop = g_main_loop_new(NULL, FALSE);
     websocket_connect();
@@ -450,5 +484,3 @@ gint main(gint argc, gchar **argv)
     g_main_loop_unref(main_loop);
     return 0;
 }
-
-

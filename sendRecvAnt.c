@@ -32,7 +32,7 @@ static GOptionEntry entries[] =
         {"ip", 's', 0, G_OPTION_ARG_STRING, &ws_server_addr, "ip address of antmedia server", NULL},
         {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port default : 5080", NULL},
         {"filename",'f', 0, G_OPTION_ARG_STRING, &filename, "specify file path which you want to stream", NULL},
-        {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "should be true for publish mode and false for play mode default true", NULL},
+        {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "publish or  play or p2p default :publish", NULL},
         //{"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
         {"streamids", 'i', 0, G_OPTION_ARG_STRING_ARRAY, &play_streamids, "you can pass n number of streamid to play like this -i streamid -i streamid ....", NULL},
         {NULL}};
@@ -358,7 +358,7 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
                 gst_promise_interrupt(promise);
             }
         }
-        else if (g_strcmp0(msg_type, "start") == 0)
+        else if (g_strcmp0(msg_type, "start") == 0 || g_strcmp0(msg_type,"startNewP2PConnection"))
         {
             webrtcbin_id = json_object_get_string_member(object, "streamId");
             create_webrtc(webrtcbin_id, offersdp, TRUE);
@@ -421,7 +421,7 @@ static void on_socket_connected(rws_socket socket)
         JsonObject *publish_stream = json_object_new();
         json_object_set_string_member(publish_stream, "command", "join");
         json_object_set_string_member(publish_stream, "streamId", play_streamids[0]);
-        json_object_set_boolean_member(publish_stream, "multiPeer", FALSE);
+        json_object_set_boolean_member(publish_stream, "multiPeer", TRUE);
         json_object_set_string_member(publish_stream, "mode", "both");
         json_string = get_string_from_json_object(publish_stream);
         rws_socket_send_text(socket, json_string);

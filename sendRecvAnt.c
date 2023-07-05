@@ -374,7 +374,7 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
             if (g_strcmp0(type, "joined") == 0)
                 is_joined = TRUE;
         }
-        else if (g_strcmp0(msg_type, "start") == 0 || g_strcmp0(msg_type,"startNewP2PConnection"))
+        else if (g_strcmp0(msg_type, "start") == 0 || g_strcmp0(msg_type,"startNewP2PConnection")==0 || g_strcmp0(msg_type,"connectWithNewId")==0 )
         {
             webrtcbin_id = json_object_get_string_member(object, "streamId");
             create_webrtc(webrtcbin_id, offersdp, TRUE);

@@ -226,12 +226,13 @@ on_negotiation_needed(GstElement *webrtc, gpointer user_data)
 }
 static void create_webrtc(gchar *webrtcbin_id, GstWebRTCSessionDescription *offersdp, gboolean send_offer)
 {
+
     GstElement *tee, *audio_q, *video_q, *webrtc;
     GstPad *sinkpad, *srcpad;
     GstPadLinkReturn ret;
     printf("created webrtc bin with id %s", webrtcbin_id);
     webrtc = gst_element_factory_make("webrtcbin", webrtcbin_id);
-    g_assert(webrtc != NULL);
+    GST_IS_ELEMENT(webrtc);
 
     g_object_set(G_OBJECT(webrtc), "bundle-policy", GST_WEBRTC_BUNDLE_POLICY_MAX_BUNDLE, NULL);
     // g_object_set(G_OBJECT(webrtc), "turn-server", TURN_SERVER, NULL);
@@ -334,6 +335,7 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
 
             if (g_strcmp0(type, "offer") == 0)
             {
+
                 create_webrtc(webrtcbin_id, offersdp, FALSE);
                 webrtc = gst_bin_get_by_name(GST_BIN(gst_pipe), webrtcbin_id);
                 g_assert_nonnull(webrtc);
@@ -348,7 +350,6 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
             }
             else if (g_strcmp0(type, "answer") == 0)
             {
-
                 webrtc = gst_bin_get_by_name(GST_BIN(gst_pipe), webrtcbin_id);
                 g_assert_nonnull(webrtc);
 
@@ -358,12 +359,6 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
                 gst_promise_interrupt(promise);
             }
         }
-        else if (g_strcmp0(msg_type, "start") == 0 || g_strcmp0(msg_type,"startNewP2PConnection"))
-        {
-            webrtcbin_id = json_object_get_string_member(object, "streamId");
-            create_webrtc(webrtcbin_id, offersdp, TRUE);
-        }
-
         else if (g_strcmp0(msg_type, "takeCandidate") == 0)
         {
             candidate = json_object_get_string_member(object, "candidate");
@@ -379,6 +374,12 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
             if (g_strcmp0(type, "joined") == 0)
                 is_joined = TRUE;
         }
+        else if (g_strcmp0(msg_type, "start") == 0 || g_strcmp0(msg_type,"startNewP2PConnection"))
+        {
+            webrtcbin_id = json_object_get_string_member(object, "streamId");
+            create_webrtc(webrtcbin_id, offersdp, TRUE);
+        }
+
     }
 }
 

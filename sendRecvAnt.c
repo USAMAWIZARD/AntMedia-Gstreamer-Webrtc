@@ -26,6 +26,7 @@ static rws_socket _socket = NULL;
 gchar *mode = "publish";
 gchar **play_streamids = NULL;
 gchar *filename = "";
+gchar *appname = "WebRTCAppEE";
 
 static GOptionEntry entries[] =
     {
@@ -33,6 +34,7 @@ static GOptionEntry entries[] =
         {"port", 'p', 0, G_OPTION_ARG_INT, &ws_server_port, "Antmedia server Port default : 5080", NULL},
         {"filename",'f', 0, G_OPTION_ARG_STRING, &filename, "specify file path which you want to stream", NULL},
         {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "publish or  play or p2p default :publish", NULL},
+        {"appname", 'a', 0, G_OPTION_ARG_STRING, &appname, "Appname for publishing the Stream :WebRTCAppEE", NULL},
         //{"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
         {"streamids", 'i', 0, G_OPTION_ARG_STRING_ARRAY, &play_streamids, "you can pass n number of streamid to play like this -i streamid -i streamid ....", NULL},
         {NULL}};
@@ -105,10 +107,10 @@ handle_media_stream(GstPad *pad, GstElement *gst_pipe, gchar *convert_name,
     GstElement *q, *conv, *resample, *sink, *toverlay;
     GstPadLinkReturn ret;
 
-    g_print("Trying to handle stream with %s ! %s %d", convert_name, sink_name);
+    g_print("Trying to handle stream with %s ! %s ", convert_name, sink_name);
     q = gst_element_factory_make("queue", NULL);
     sink = gst_element_factory_make(sink_name, NULL);
-    g_object_set(G_OBJECT(sink), "sync", FALSE);
+    g_object_set(G_OBJECT(sink), "sync", FALSE,NULL);
     conv = gst_element_factory_make(convert_name, NULL);
 
     if (g_strcmp0(convert_name, "audioconvert") == 0)
@@ -480,7 +482,8 @@ static void websocket_connect()
     g_assert(_socket);
     rws_socket_set_scheme(_socket, "ws");
     rws_socket_set_host(_socket, ws_server_addr);
-    rws_socket_set_path(_socket, "/WebRTCAppEE/websocket");
+    appname =  g_strdup_printf("/%s/websocket",appname);
+    rws_socket_set_path(_socket, appname);
     rws_socket_set_port(_socket, ws_server_port);
     rws_socket_set_on_disconnected(_socket, &on_socket_disconnected);
     rws_socket_set_on_received_text(_socket, &on_socket_received_text);

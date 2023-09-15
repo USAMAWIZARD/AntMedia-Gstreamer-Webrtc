@@ -374,10 +374,23 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
             if (g_strcmp0(type, "joined") == 0)
                 is_joined = TRUE;
         }
-        else if (g_strcmp0(msg_type, "start") == 0 || g_strcmp0(msg_type,"startNewP2PConnection")==0 || g_strcmp0(msg_type,"connectWithNewId")==0 )
+        else if (g_strcmp0(msg_type, "start") == 0 || g_strcmp0(msg_type,"startNewP2PConnection")==0  )
         {
             webrtcbin_id = json_object_get_string_member(object, "streamId");
             create_webrtc(webrtcbin_id, offersdp, TRUE);
+        }
+        else if ( g_strcmp0(msg_type,"connectWithNewId")==0){
+        
+        webrtcbin_id = json_object_get_string_member(object, "streamId");
+
+        JsonObject *publish_stream = json_object_new();
+        json_object_set_string_member(publish_stream, "command", "join");
+        json_object_set_string_member(publish_stream, "streamId", webrtcbin_id);
+        json_object_set_boolean_member(publish_stream, "multiPeer", FALSE);
+        json_object_set_string_member(publish_stream, "mode", "both");
+         gchar *json_string = get_string_from_json_object(publish_stream);
+        rws_socket_send_text(socket, json_string);
+
         }
 
     }

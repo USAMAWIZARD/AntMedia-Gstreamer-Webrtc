@@ -37,7 +37,7 @@ I have supplied binaries of compiled websocket libraries for winx86_64 , macos (
 ``` gcc ./sendRecvAnt.c  -o  sendRecvAnt  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/mac_m1_librws_static.a ```
 
 ## Usage 
-
+```
   sendRecvAnt - Gstreamer Antmedia Webrtc Publish and Play
 
 Help Options:
@@ -50,7 +50,7 @@ Application Options:                                   Default
   -m, --mode          publish or  play or p2p default : publish
   -a, --appname       Appname for publishing the Stream : WebRTCAppEE
   -i, --streamids     you can pass n number of streamid to play like this -i streamid -i streamid ....
-
+```
 
 
 ## peer to peer  Mode

@@ -32,9 +32,25 @@ Add to path ``` export  PKG_CONFIG_PATH="/Library/Frameworks/GStreamer.framewor
 I have supplied binaries of compiled websocket libraries for winx86_64 , macos (m1) and linux(x86_64) in libs directory you can compile the websocket library by yourself from [here](https://github.com/OlehKulykov/librws) if you are using some other operating system or CPU architecture.
 
 ## Compiling src code on Linux
-``` gcc ./sendRecvAnt  -o  sendRecvAnt  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/Linux_librws_static.a ```
+``` gcc ./sendRecvAnt.c  -o  sendRecvAnt  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/Linux_librws_static.a ```
 ## Compiling src code on Mac
 ``` gcc ./sendRecvAnt.c  -o  sendRecvAnt  `pkg-config --cflags --libs gstreamer-1.0 gstreamer-webrtc-1.0 gstreamer-sdp-1.0  json-glib-1.0 ` ./libs/mac_m1_librws_static.a ```
+
+## Usage 
+
+  sendRecvAnt - Gstreamer Antmedia Webrtc Publish and Play
+
+Help Options:
+  -h, --help          Show help options
+
+Application Options:                                   Default
+  -s, --ip            ip address of antmedia server 
+  -p, --port          Antmedia server Port default : 5080
+  -f, --filename      specify file path which you want to stream
+  -m, --mode          publish or  play or p2p default : publish
+  -a, --appname       Appname for publishing the Stream : WebRTCAppEE
+  -i, --streamids     you can pass n number of streamid to play like this -i streamid -i streamid ....
+
 
 
 ## peer to peer  Mode

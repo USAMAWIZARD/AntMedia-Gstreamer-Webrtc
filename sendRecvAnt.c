@@ -437,7 +437,7 @@ static void on_socket_connected(rws_socket socket)
         JsonObject *publish_stream = json_object_new();
         json_object_set_string_member(publish_stream, "command", "join");
         json_object_set_string_member(publish_stream, "streamId", play_streamids[0]);
-        json_object_set_boolean_member(publish_stream, "multiPeer", TRUE);
+        json_object_set_boolean_member(publish_stream, "multiPeer", FALSE);
         json_object_set_string_member(publish_stream, "mode", "both");
         json_string = get_string_from_json_object(publish_stream);
         rws_socket_send_text(socket, json_string);

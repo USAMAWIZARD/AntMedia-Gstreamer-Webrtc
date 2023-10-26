@@ -60,13 +60,13 @@ On second peer ```./sendRecvAnt --mode p2p --ip AMS_IP --streamid streamid ``` <
 
 by default videotest src will be streamed if you want to use a file for streaming please specify file name with as -f test.mp4<br>
 only mp4 file will work
-## Send or receive Streams from gstreamer to AMS Server 
+## Publish or Play Streams from gstreamer to AMS Server 
 We can either send or receive streams from gstreamer to  AMS 
 
-#### sending stream To AMS from gstreamer  
+#### Publish stream To AMS from gstreamer  
 video stream with id stream1 will be send to.Publish is the defalut mode<br>
 ``` sendRecvAnt --ip AMS_IP -i stream1 ```<br>
-#### receiving stream In Gstreamer from AMS:
+#### Play stream In Gstreamer from AMS:
 will receive  stream with id stream1 in Gstreamer  <br>
 ``` sendRecvAnt --ip AMS_IP --mode play -i stream1 ``` <br>
 you can also specifie N number of stream ids  like this to receive multiple streams <br>

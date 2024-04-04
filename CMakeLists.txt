@@ -30,3 +30,5 @@ include_directories(
 add_executable(sendRecvAnt sendRecvAnt.c)
 add_dependencies(sendRecvAnt rws_static)
 target_link_libraries(sendRecvAnt PRIVATE ${GSTLIBS_LIBRARIES} rws_static)
+
+install(TARGETS sendRecvAnt DESTINATION bin)

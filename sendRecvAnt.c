@@ -511,7 +511,7 @@ gint main(gint argc, gchar **argv)
     }
     if (g_strcmp0(ws_server_addr, "") == 0)
     {
-        printf("please enter the ws server  ip address --ip IP_ADDRESS");
+        printf("please enter the ws server  ip address --ip IP_ADDRESS\n");
         exit(0);
     }
 

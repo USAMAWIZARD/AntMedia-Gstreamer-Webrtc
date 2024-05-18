@@ -27,6 +27,7 @@ gchar *mode = "publish";
 gchar **play_streamids = NULL;
 gchar *filename = "";
 gchar *appname = "WebRTCAppEE";
+gchar *stream_token = NULL;
 
 static GOptionEntry entries[] =
     {
@@ -35,6 +36,7 @@ static GOptionEntry entries[] =
         {"filename",'f', 0, G_OPTION_ARG_STRING, &filename, "specify file path which you want to stream", NULL},
         {"mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "publish or  play or p2p default :publish", NULL},
         {"appname", 'a', 0, G_OPTION_ARG_STRING, &appname, "Appname for publishing the Stream :WebRTCAppEE", NULL},
+        {"token", 't', 0, G_OPTION_ARG_STRING, &stream_token, "Antmedia server token for publishing the Stream :WebRTCAppEE", NULL},
         //{"video codec", 'c', 0, G_OPTION_ARG_STRING, &vencoding, "video codecs h264 or vp8", NULL},
         {"streamids", 'i', 0, G_OPTION_ARG_STRING_ARRAY, &play_streamids, "you can pass n number of streamid to play like this -i streamid -i streamid ....", NULL},
         {NULL}};
@@ -273,7 +275,7 @@ static void create_webrtc(gchar *webrtcbin_id, GstWebRTCSessionDescription *offe
     g_assert_cmpint(ret, ==, GST_PAD_LINK_OK);
     gst_object_unref(srcpad);
     gst_object_unref(sinkpad);
-    
+
     tee = gst_bin_get_by_name(GST_BIN(gst_pipe), "audio_tee");
     g_assert_nonnull(tee);
     srcpad = gst_element_request_pad_simple(tee, "src_%u"); // linking audio to webrtc element
@@ -302,7 +304,8 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
     JsonParser *json_parser;
     JsonObject *object;
     JsonNode *root;
-    const gchar *msg_type, *offer, *type, *candidate, *recived_sdp, *answersdp;
+    const gchar *msg_type, *offer, *type, *candidate, *recived_sdp;
+    GstWebRTCSessionDescription *answersdp;
     GstWebRTCSessionDescription *offersdp;
     GstSDPMessage *sdp;
     int ret;
@@ -323,8 +326,8 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
         if (g_strcmp0(msg_type, "takeConfiguration") == 0)
         {
             type = json_object_get_string_member(object, "type");
-            recived_sdp = json_object_get_string_member(object, "sdp");
-            webrtcbin_id = json_object_get_string_member(object, "streamId");
+            recived_sdp = (gchar *)json_object_get_string_member(object, "sdp");
+            webrtcbin_id = (gchar *)json_object_get_string_member(object, "streamId");
             g_print("%s\n", recived_sdp);
             ret = gst_sdp_message_new(&sdp);
             g_assert_cmphex(ret, ==, GST_SDP_OK);
@@ -364,7 +367,7 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
         else if (g_strcmp0(msg_type, "takeCandidate") == 0)
         {
             candidate = json_object_get_string_member(object, "candidate");
-            webrtcbin_id = json_object_get_string_member(object, "streamId");
+            webrtcbin_id = (gchar *)json_object_get_string_member(object, "streamId");
             g_print("ice %s %s\n", candidate, webrtcbin_id);
             webrtc = gst_bin_get_by_name(GST_BIN(gst_pipe), webrtcbin_id);
             g_assert_nonnull(webrtc);
@@ -378,12 +381,12 @@ void on_socket_received_text(rws_socket socket, const char *text, const unsigned
         }
         else if (g_strcmp0(msg_type, "start") == 0 || g_strcmp0(msg_type,"startNewP2PConnection")==0  )
         {
-            webrtcbin_id = json_object_get_string_member(object, "streamId");
+            webrtcbin_id = (gchar *)json_object_get_string_member(object, "streamId");
             create_webrtc(webrtcbin_id, offersdp, TRUE);
         }
         else if ( g_strcmp0(msg_type,"connectWithNewId")==0){
-        
-        webrtcbin_id = json_object_get_string_member(object, "streamId");
+
+        webrtcbin_id = (gchar *)json_object_get_string_member(object, "streamId");
 
         JsonObject *publish_stream = json_object_new();
         json_object_set_string_member(publish_stream, "command", "join");
@@ -468,6 +471,9 @@ static void on_socket_connected(rws_socket socket)
         JsonObject *publish_stream = json_object_new();
         json_object_set_string_member(publish_stream, "command", "publish");
         json_object_set_string_member(publish_stream, "streamId", play_streamids[0]);
+        if (stream_token != "") {
+            json_object_set_string_member(publish_stream, "token", stream_token);
+        }
         json_object_set_boolean_member(publish_stream, "video", TRUE);
         json_object_set_boolean_member(publish_stream, "audio", TRUE);
         json_string = get_string_from_json_object(publish_stream);
